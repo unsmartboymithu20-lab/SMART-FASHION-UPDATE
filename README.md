@@ -122,3 +122,25 @@ This upgrade is additive and keeps the existing PostgreSQL tables, product recor
 5. After deployment, test product filters, Admin → Overview low-stock alerts and Admin → Orders → Export CSV.
 
 The ZIP was checked with Node.js syntax validation. The live Render database and production account cannot be tested from this local package, so complete the post-deploy checks above before announcing the changes.
+
+
+## Advanced management add-on (2026-11)
+
+This package adds backward-compatible PostgreSQL columns and tables at startup (no DROP, TRUNCATE, database reset, or replacement of existing IDs):
+- Customer profile fields (address, city, profile image, active state), admin customer search/status controls, order totals/history, and anonymization that retains order rows.
+- Product SKU, compare-at price, tags, image-list and variant JSON fields.
+- Analytics API for selected date ranges, top sellers and daily revenue.
+- Inventory adjustment API and movement history; order reservation and cancellation adjustments are logged.
+- Order payment-status field and status-history JSON.
+- Customer profile read/update and authenticated password-change APIs.
+- Admin dashboard sections for Customers, Analytics and Inventory; product editor accepts tags and variant JSON.
+
+### Important scope and production verification notes
+This is an additive implementation layer, not a claim that every item in the original specification is finished. The current storefront still needs a customer-facing profile/orders UI, secure email-based forgot/reset-password flow (SMTP/provider credentials required), full size/colour-aware cart and checkout validation, scheduled discount display, payment-gateway integration, invoice printing, richer order filtering, and a dedicated object-storage integration (the existing upload route still stores image data in PostgreSQL). Product gallery/variant data fields are present, but the full multi-file gallery editor and customer gallery interaction still need implementation. Analytics is database-backed but currently provides summary, best sellers and daily rows rather than a charting library. Review these remaining items before treating the store as launch-complete.
+
+### Safe rollout
+1. Back up the Render PostgreSQL database before deployment.
+2. Deploy to a staging service/database first if available; check `/api/health`.
+3. Verify customer/admin login, customer activation/deactivation, existing orders, product editing, inventory adjustments, CSV export and analytics.
+4. Keep existing Render `DATABASE_URL`, `DB_SSL`, `SESSION_SECRET`, `ADMIN_EMAIL` and `ADMIN_PASSWORD`. No new environment variables are required by this add-on.
+5. Never point a test deployment at production if you intend to test destructive operations. The schema changes are additive, but take a backup first.
