@@ -3,38 +3,53 @@ const money=n=>"৳"+Number(n||0).toLocaleString("en-BD");
 async function api(url,opts={}){const r=await fetch(url,{headers:{"Content-Type":"application/json"},...opts});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||"Request failed");return j}
 async function loadStore(){const [p,s]=await Promise.all([api("/api/products"),api("/api/settings")]);products=p;deliveryCharge=Math.max(0,Number(s.delivery_charge)||0);document.title=(s.store_name||"SMART FASHION")+" | Online Fashion Store";const logo=document.querySelector(".logo");if(logo)logo.textContent=s.store_name||"SMART FASHION";document.getElementById("announcement").textContent=s.announcement||"";if(s.hero_title)document.getElementById("heroTitle").textContent=s.hero_title;if(s.hero_subtitle)document.getElementById("heroSubtitle").textContent=s.hero_subtitle;if(s.promo_title)document.getElementById("promoTitle").textContent=s.promo_title;if(s.promo_text)document.getElementById("promoText").textContent=s.promo_text;if(s.hero_image){try{const u=new URL(s.hero_image);if(["http:","https:"].includes(u.protocol))document.querySelector(".app-hero").style.backgroundImage=`linear-gradient(90deg,#211833b8,#21183325),url("${u.href}")`}catch{}}document.getElementById("year").textContent=new Date().getFullYear();renderProducts();renderCart()}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function renderProducts(){renderCategories();const shown=products.filter(p=>(activeCategory==="All"||String(p.category||"").toLowerCase()===activeCategory.toLowerCase())&&(!searchTerm||(p.name+" "+p.category+" "+p.description).toLowerCase().includes(searchTerm)));const count=document.getElementById("resultCount");if(count)count.textContent=shown.length+" Styles";document.getElementById("productsGrid").innerHTML=shown.length?shown.map(p=>`<article class="product-card"><img class="product-image" loading="lazy" role="button" tabindex="0" onclick="openProductDetails(${p.id})" onkeydown="if(event.key==='Enter')openProductDetails(${p.id})" src="${esc(p.image||"https://images.unsplash.com/photo-1445205170230-053b83016050?w=700")}" alt="${esc(p.name)}" onerror="this.src='https://images.unsplash.com/photo-1445205170230-053b83016050?w=700'"><h3 class="product-title-link" onclick="openProductDetails(${p.id})">${esc(p.name)}</h3><p>${esc(p.category||"Fashion")}</p><div class="product-bottom"><b>${money(p.price)}</b><div class="product-actions"><button class="fav-btn" title="Wishlist" onclick="toggleWishlist(${p.id})">${wishlist.includes(p.id)?"♥":"♡"}</button><button class="add-btn" onclick="addCart(${p.id})">ADD +</button></div></div><div class="review-mini"><button onclick="openReviews(${p.id})">☆ Reviews & Rate</button>${p.stock>0?`<small>${p.stock} in stock</small>`:`<small>Out of stock</small>`}</div></article>`).join(""):"<p>এই নামে কোনো পণ্য পাওয়া যায়নি। অন্য কিছু লিখে খুঁজুন।</p>"}
-
-
-let detailProductId=null,detailQty=1,detailSize="",detailColor="";
-function openProductDetails(id){
- const p=products.find(x=>Number(x.id)===Number(id));if(!p)return;
- detailProductId=p.id;detailQty=1;detailSize="";detailColor="";
- const img=esc(p.image||"https://images.unsplash.com/photo-1445205170230-053b83016050?w=900");
- const gallery=[p.image,...(Array.isArray(p.gallery)?p.gallery:[])].filter(Boolean);
- document.getElementById("productDetailContent").innerHTML=`
- <div class="detail-layout"><div class="detail-gallery"><img id="detailMainImage" class="detail-main-image" src="${img}" alt="${esc(p.name)}">
- <div class="detail-thumbs">${(gallery.length?gallery:[p.image||img]).slice(0,4).map((src,i)=>`<button type="button" class="detail-thumb ${i===0?'active':''}" onclick="changeDetailImage(this,'${esc(src)}')"><img src="${esc(src)}" alt="${esc(p.name)}"></button>`).join("")}</div></div>
- <div class="detail-info"><small class="detail-kicker">SMART FASHION / ${esc(p.category||"FASHION")}</small><h2>${esc(p.name)}</h2><div class="detail-rating">★★★★★ <button type="button" onclick="closeProductDetails();openReviews(${p.id})">রিভিউ দেখুন</button></div>
- <div class="detail-price">${money(p.price)}</div><p class="detail-description">${esc(p.description||"এই পণ্যটি সম্পর্কে বিস্তারিত তথ্য শীঘ্রই যুক্ত করা হবে।")}</p>
- <div class="detail-stock">${Number(p.stock)>0?`স্টকে আছে (${Number(p.stock)} টি)`:"স্টক শেষ"}</div>
- <label class="detail-label" for="detailSize">সাইজ নির্বাচন</label><select id="detailSize" onchange="detailSize=this.value"><option value="">সাইজ নির্বাচন করুন</option>${["S","M","L","XL","XXL","Free Size"].map(s=>`<option>${s}</option>`).join("")}</select>
- <label class="detail-label" for="detailColor">রং নির্বাচন (ঐচ্ছিক)</label><select id="detailColor" onchange="detailColor=this.value"><option value="">রং নির্বাচন করুন</option>${["Black","White","Red","Blue","Green","Other"].map(s=>`<option>${s}</option>`).join("")}</select>
- <label class="detail-label">পরিমাণ</label><div class="detail-qty"><button type="button" onclick="changeDetailQty(-1)">−</button><output id="detailQty">${detailQty}</output><button type="button" onclick="changeDetailQty(1)">+</button></div>
- <button type="button" class="detail-add-btn" onclick="addDetailToCart()" ${Number(p.stock)<1?"disabled":""}>ADD TO BAG — ${money(p.price)}</button>
- <button type="button" class="detail-wish-btn" onclick="toggleWishlist(${p.id});this.textContent=wishlist.includes(${p.id})?'♥ Wishlist-এ আছে':'♡ Wishlist-এ রাখুন'">${wishlist.includes(p.id)?"♥ Wishlist-এ আছে":"♡ Wishlist-এ রাখুন"}</button>
- <small class="detail-code">Product Code: ${esc(p.id)} · Availability: ${Number(p.stock)>0?"In stock":"Out of stock"}</small></div></div>`;
- document.getElementById("productDetailModal").classList.add("show");
+function renderProducts(){
+  renderCategories();
+  const shown=products.filter(p=>(activeCategory==="All"||String(p.category||"").toLowerCase()===activeCategory.toLowerCase())&&(!searchTerm||(p.name+" "+p.category+" "+p.description).toLowerCase().includes(searchTerm)));
+  const count=document.getElementById("resultCount");if(count)count.textContent=shown.length+" Styles";
+  document.getElementById("productsGrid").innerHTML=shown.length?shown.map(p=>`<article class="product-card">
+    <button class="product-open" type="button" onclick="openProductDetails(${p.id})" aria-label="${esc(p.name)} details">
+      <img class="product-image" loading="lazy" src="${esc(p.image||"https://images.unsplash.com/photo-1445205170230-053b83016050?w=700")}" alt="${esc(p.name)}" onerror="this.src='https://images.unsplash.com/photo-1445205170230-053b83016050?w=700'">
+      <span class="product-view-hint">বিস্তারিত দেখুন ↗</span>
+    </button>
+    <h3 class="product-title-click" onclick="openProductDetails(${p.id})" role="button" tabindex="0" onkeydown="if(event.key==='Enter')openProductDetails(${p.id})">${esc(p.name)}</h3>
+    <p>${esc(p.category||"Fashion")}</p>
+    <div class="product-bottom"><b>${money(p.price)}</b><div class="product-actions"><button class="fav-btn" title="Wishlist" onclick="toggleWishlist(${p.id})">${wishlist.includes(p.id)?"♥":"♡"}</button><button class="add-btn" onclick="addCart(${p.id})">ADD +</button></div></div>
+    <div class="review-mini"><button onclick="openReviews(${p.id})">☆ Reviews & Rate</button>${p.stock>0?`<small>${p.stock} in stock</small>`:`<small>Out of stock</small>`}</div>
+  </article>`).join(""):"<p>এই নামে কোনো পণ্য পাওয়া যায়নি। অন্য কিছু লিখে খুঁজুন।";
 }
-function changeDetailImage(btn,src){document.getElementById("detailMainImage").src=src;document.querySelectorAll(".detail-thumb").forEach(x=>x.classList.remove("active"));btn.classList.add("active")}
-function changeDetailQty(delta){const p=products.find(x=>x.id===detailProductId);detailQty=Math.max(1,Math.min(Number(p?.stock)||1,detailQty+delta));document.getElementById("detailQty").textContent=detailQty}
-function closeProductDetails(){document.getElementById("productDetailModal").classList.remove("show")}
-function addDetailToCart(){const p=products.find(x=>x.id===detailProductId);if(!p||p.stock<1)return alert("এই পণ্যটি বর্তমানে স্টকে নেই।");const existing=cart.find(x=>x.id===p.id&&x.size===detailSize&&x.color===detailColor);if(existing){if(existing.qty+detailQty>p.stock)return alert("স্টকে পর্যাপ্ত পণ্য নেই।");existing.qty+=detailQty}else cart.push({id:p.id,qty:detailQty,size:detailSize,color:detailColor});saveCart();closeProductDetails();toggleCart(true)}
+let detailQuantity=1;
+function openProductDetails(id){
+  const p=products.find(x=>Number(x.id)===Number(id));if(!p)return;
+  detailQuantity=1;
+  const modal=document.getElementById("productDetailsModal");
+  document.getElementById("detailImage").src=p.image||"https://images.unsplash.com/photo-1445205170230-053b83016050?w=900";
+  document.getElementById("detailImage").alt=p.name;
+  document.getElementById("detailCategory").textContent=p.category||"Fashion";
+  document.getElementById("detailName").textContent=p.name;
+  document.getElementById("detailPrice").textContent=money(p.price);
+  document.getElementById("detailDescription").textContent=p.description||"এই পণ্য সম্পর্কে বিস্তারিত তথ্য শীঘ্রই যুক্ত করা হবে।";
+  document.getElementById("detailStock").textContent=Number(p.stock)>0?`স্টকে আছে · ${p.stock} টি`:"এই পণ্যটি বর্তমানে স্টকে নেই";
+  document.getElementById("detailQty").textContent="1";
+  const add=document.getElementById("detailAddButton");add.disabled=Number(p.stock)<1;add.textContent=Number(p.stock)>0?"কার্টে যোগ করুন":"স্টকে নেই";add.onclick=()=>{addCart(id,detailQuantity);closeUtility("productDetailsModal")};
+  document.getElementById("detailWishlistButton").onclick=()=>{toggleWishlist(id);document.getElementById("detailWishlistButton").textContent=wishlist.includes(id)?"♥ Wishlist-এ আছে":"♡ Wishlist-এ রাখুন"};
+  document.getElementById("detailWishlistButton").textContent=wishlist.includes(id)?"♥ Wishlist-এ আছে":"♡ Wishlist-এ রাখুন";
+  document.getElementById("detailReviewsButton").onclick=()=>{closeUtility("productDetailsModal");openReviews(id)};
+  openUtility("productDetailsModal");
+}
+function changeDetailQty(delta){
+  const p=products.find(x=>Number(x.id)===Number(document.getElementById("detailAddButton").dataset.productId));
+  if(!p)return;
+  detailQuantity=Math.max(1,Math.min(Number(p.stock)||1,detailQuantity+delta));
+  document.getElementById("detailQty").textContent=detailQuantity;
+}
+
+
 function renderCategories(){const cats=["All",...new Set(products.map(p=>String(p.category||"Fashion").trim()).filter(Boolean))];const labels={All:"সব পণ্য",Men:"Men",Women:"Women",Kids:"Kids",Shoes:"Shoes",Accessories:"Access."};const strip=document.querySelector(".category-strip"),filters=document.querySelector(".filter-row");if(strip)strip.innerHTML=cats.map((c,i)=>`<button class="category-tile ${activeCategory===c?"active":""}" data-category="${esc(c)}"><span>${i===0?"✦":"◈"}</span><b>${esc(labels[c]||c)}</b></button>`).join("");if(filters)filters.innerHTML=cats.map(c=>`<button class="filter-chip ${activeCategory===c?"active":""}" data-category="${esc(c)}">${esc(labels[c]||c)}</button>`).join("")}
 
 function saveCart(){localStorage.setItem("sf_cart",JSON.stringify(cart));renderCart()}
-function addCart(id){const p=products.find(x=>x.id===id);if(!p||p.stock<1)return alert("এই পণ্যটি বর্তমানে স্টকে নেই।");let x=cart.find(i=>i.id===id);if(x){if(x.qty>=p.stock)return alert("স্টকে পর্যাপ্ত পণ্য নেই।");x.qty++}else cart.push({id,qty:1});saveCart();toggleCart(true)}
-function renderCart(){document.getElementById("cartCount").textContent=cart.reduce((a,b)=>a+b.qty,0);let lines=cart.map(i=>{let p=products.find(x=>x.id===i.id);return p?`<div class="cart-line"><span>${esc(p.name)}${i.size||i.color?` <small>(${esc([i.size,i.color].filter(Boolean).join(" / "))})</small>`:""} × ${i.qty}</span><b>${money(p.price*i.qty)} <button onclick="removeCart(${i.id})">✕</button></b></div>`:""}).join("");document.getElementById("cartItems").innerHTML=lines||"<p>আপনার Cart খালি।</p>";const sub=cart.reduce((a,i)=>a+(products.find(p=>p.id===i.id)?.price||0)*i.qty,0);document.getElementById("cartTotal").innerHTML=`Subtotal: ${money(sub)}<br>Delivery: ${money(deliveryCharge)}<br><b>Estimated total: ${money(sub+deliveryCharge)}</b>`}
+function addCart(id,quantity=1){const p=products.find(x=>Number(x.id)===Number(id));quantity=Math.max(1,Math.floor(Number(quantity)||1));if(!p||p.stock<1)return alert("এই পণ্যটি বর্তমানে স্টকে নেই।");let x=cart.find(i=>Number(i.id)===Number(id));if(x){if(x.qty+quantity>p.stock)return alert("স্টকে পর্যাপ্ত পণ্য নেই।");x.qty+=quantity}else{if(quantity>p.stock)return alert("স্টকে পর্যাপ্ত পণ্য নেই।");cart.push({id:Number(id),qty:quantity})}saveCart();toggleCart(true)}
+function renderCart(){document.getElementById("cartCount").textContent=cart.reduce((a,b)=>a+b.qty,0);let lines=cart.map(i=>{let p=products.find(x=>x.id===i.id);return p?`<div class="cart-line"><span>${esc(p.name)} × ${i.qty}</span><b>${money(p.price*i.qty)} <button onclick="removeCart(${i.id})">✕</button></b></div>`:""}).join("");document.getElementById("cartItems").innerHTML=lines||"<p>আপনার Cart খালি।</p>";const sub=cart.reduce((a,i)=>a+(products.find(p=>p.id===i.id)?.price||0)*i.qty,0);document.getElementById("cartTotal").innerHTML=`Subtotal: ${money(sub)}<br>Delivery: ${money(deliveryCharge)}<br><b>Estimated total: ${money(sub+deliveryCharge)}</b>`}
 function removeCart(id){cart=cart.filter(i=>i.id!==id);saveCart()}
 function toggleCart(force){let open=force??!document.getElementById("cart").classList.contains("open");document.getElementById("cart").classList.toggle("open",open);document.getElementById("overlay").classList.toggle("open",open)}
 function checkout(){if(!cart.length)return alert("প্রথমে পণ্য Cart-এ যোগ করুন");toggleCart(false);if(!currentCustomer){checkoutAfterLogin=true;openAccount();document.getElementById("accountMessage").textContent="অর্ডার করতে Login অথবা Register করুন।";return}prefillCheckout();document.getElementById("checkoutModal").classList.add("show")}
