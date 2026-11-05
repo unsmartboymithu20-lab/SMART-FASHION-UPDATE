@@ -73,26 +73,6 @@
 
 <div class="overlay" id="overlay" onclick="toggleCart()"></div>
 <aside class="cart" id="cart"><div class="cart-head"><h2>Your Cart</h2><button onclick="toggleCart()">✕</button></div><div id="cartItems"></div><div class="cart-total" id="cartTotal">Total: ৳0</div><button class="primary-btn full" onclick="checkout()">CHECKOUT</button></aside>
-<div class="modal product-details-modal" id="productDetailsModal" role="dialog" aria-modal="true" aria-labelledby="detailName">
-  <div class="modal-card product-details-card">
-    <button class="close" aria-label="বন্ধ করুন" onclick="closeUtility('productDetailsModal')">✕</button>
-    <div class="product-details-layout">
-      <div class="product-details-photo"><img id="detailImage" src="" alt=""></div>
-      <div class="product-details-info">
-        <small id="detailCategory" class="detail-category"></small>
-        <h2 id="detailName"></h2>
-        <div class="detail-rating"><button id="detailReviewsButton" type="button">☆ রিভিউ দেখুন ও লিখুন</button></div>
-        <strong id="detailPrice" class="detail-price"></strong>
-        <p id="detailDescription" class="detail-description"></p>
-        <div id="detailStock" class="detail-stock"></div>
-        <div class="detail-quantity"><span>পরিমাণ</span><div><button type="button" onclick="changeDetailQty(-1)" aria-label="কমিয়ে দিন">−</button><b id="detailQty">1</b><button type="button" onclick="changeDetailQty(1)" aria-label="বাড়িয়ে দিন">+</button></div></div>
-        <button id="detailAddButton" class="primary-btn full" type="button">কার্টে যোগ করুন</button>
-        <button id="detailWishlistButton" class="outline-btn full" type="button">♡ Wishlist-এ রাখুন</button>
-        <small class="detail-note">অর্ডার করার আগে পণ্যের তথ্য ও স্টক যাচাই করুন।</small>
-      </div>
-    </div>
-  </div>
-</div>
 <div class="modal" id="reviewModal"><div class="modal-card"><button class="close" onclick="closeUtility('reviewModal')">✕</button><h2>পণ্যের রিভিউ</h2><div id="reviewList"></div><form id="reviewForm"><input type="hidden" name="product_id"><input name="customer_name" placeholder="আপনার নাম" required><select name="rating"><option value="5">★★★★★ - Excellent</option><option value="4">★★★★ - Good</option><option value="3">★★★ - Average</option><option value="2">★★ - Poor</option><option value="1">★ - Bad</option></select><textarea name="comment" placeholder="আপনার অভিজ্ঞতা লিখুন"></textarea><button class="primary-btn full">রিভিউ জমা দিন</button></form><p id="reviewMessage"></p></div></div>
 <div class="modal" id="trackModal"><div class="modal-card"><button class="close" onclick="closeUtility('trackModal')">✕</button><h2>অর্ডার ট্র্যাকিং</h2><form id="trackForm"><input name="id" type="number" placeholder="Order ID" required><input name="phone" placeholder="অর্ডারে দেওয়া ফোন নম্বর" required><button class="primary-btn full">TRACK ORDER</button></form><div id="trackResult"></div></div></div>
 <div class="modal" id="wishlistModal"><div class="modal-card"><button class="close" onclick="closeUtility('wishlistModal')">✕</button><h2>আপনার Wishlist</h2><div id="wishlistItems"></div></div></div>
