@@ -272,7 +272,14 @@ app.get("/api/admin/overview",adminOnly,asyncRoute(async(req,res)=>{
     pool.query("SELECT COUNT(*)::int AS count,COALESCE(SUM(total) FILTER (WHERE status <> 'Cancelled'),0)::numeric AS revenue FROM orders"),
     pool.query("SELECT COUNT(*)::int AS count FROM orders WHERE status='Pending'")
   ]);
-  res.json({products:p.rows[0].count,orders:o.rows[0].count,revenue:Number(o.rows[0].revenue),pending:s.rows[0].count});
+  const low=await pool.query("SELECT id,name,stock FROM products WHERE active=true AND stock<=5 ORDER BY stock ASC,name ASC LIMIT 12");
+  res.json({products:p.rows[0].count,orders:o.rows[0].count,revenue:Number(o.rows[0].revenue),pending:s.rows[0].count,lowStock:low.rows});
+}));
+app.get("/api/admin/orders.csv",adminOnly,asyncRoute(async(req,res)=>{
+  const {rows}=await pool.query("SELECT id,customer_name,phone,address,city,items,subtotal,delivery_charge,discount,total,payment_method,status,created_at FROM orders ORDER BY id DESC");
+  const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const data=[["Order ID","Customer","Phone","Address","City","Items","Subtotal","Delivery","Discount","Total","Payment","Status","Created At"],...rows.map(o=>[o.id,o.customer_name,o.phone,o.address,o.city,(o.items||[]).map(i=>`${i.name} x ${i.qty}`).join("; "),o.subtotal,o.delivery_charge,o.discount,o.total,o.payment_method,o.status,o.created_at])];
+  res.setHeader("Content-Type","text/csv; charset=utf-8");res.setHeader("Content-Disposition",'attachment; filename="smart-fashion-orders.csv"');res.send("\uFEFF"+data.map(row=>row.map(csvCell).join(",")).join("\r\n"));
 }));
 app.put("/api/admin/settings",adminOnly,asyncRoute(async(req,res)=>{
   const allowed=["store_name","delivery_charge","announcement","phone","address","hero_title","hero_subtitle","hero_image","promo_title","promo_text","whatsapp","facebook","instagram"];

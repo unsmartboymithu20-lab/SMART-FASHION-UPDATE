@@ -105,3 +105,20 @@ Confirm these exist in **Render → Web Service → Environment**:
 | `ADMIN_PASSWORD` | Your own strong, unique admin password |
 
 After changing environment variables, trigger a new deploy. Do not share the admin password or commit it to GitHub. The ZIP can be syntax-checked locally, but real login/order testing still requires your live PostgreSQL database and Render environment.
+
+## Advanced Features Upgrade (2026-11)
+
+This upgrade is additive and keeps the existing PostgreSQL tables, product records, customer accounts, orders, coupons and settings intact.
+
+- Storefront catalogue controls: featured/default ordering, price ascending/descending, newest, A–Z, maximum-price filter, in-stock-only filter and reset. Controls adapt to mobile screens.
+- Admin overview: low-stock alert list for active products with 5 or fewer units.
+- Admin orders: authenticated CSV export for order records, including customer, line items, totals, payment method and status.
+
+### Deploy this upgrade safely
+1. Download and extract the upgraded ZIP.
+2. Replace the files in your existing GitHub repository with the contents of the `smart-fashion` folder (keep the repository root structure the same).
+3. Commit and push to GitHub; Render will deploy from the connected repository.
+4. Do not delete or recreate your Render PostgreSQL database. The upgrade does not require dropping tables or resetting data.
+5. After deployment, test product filters, Admin → Overview low-stock alerts and Admin → Orders → Export CSV.
+
+The ZIP was checked with Node.js syntax validation. The live Render database and production account cannot be tested from this local package, so complete the post-deploy checks above before announcing the changes.
