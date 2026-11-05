@@ -25,7 +25,7 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
-  store: new PgSession({ pool, tableName: "session" }),
+  store: new PgSession({ pool, tableName: "session", createTableIfMissing: true }),
   secret: process.env.SESSION_SECRET || "development-only-change-me",
   resave: false, saveUninitialized: false,
   cookie: { httpOnly: true, secure: isProd, sameSite: "lax", maxAge: 7 * 86400000 }
