@@ -81,6 +81,9 @@ async function initDb() {
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT DEFAULT '';
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount NUMERIC(12,2) NOT NULL DEFAULT 0;
+    ALTER TABLE customers ADD COLUMN IF NOT EXISTS address TEXT DEFAULT '';
+    ALTER TABLE customers ADD COLUMN IF NOT EXISTS city TEXT DEFAULT '';
+    ALTER TABLE customers ADD COLUMN IF NOT EXISTS postal_code TEXT DEFAULT '';
   `);
   const email = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
   const password = String(process.env.ADMIN_PASSWORD || "");
@@ -153,9 +156,25 @@ app.post("/api/customer/login",asyncRoute(async(req,res)=>{
   const c={id:rows[0].id,full_name:rows[0].full_name,email:rows[0].email,phone:rows[0].phone};
   req.session.regenerate(err=>{if(err)return res.status(500).json({error:"Session তৈরি হয়নি"});req.session.customer=c;req.session.save(e=>e?res.status(500).json({error:"Session save হয়নি"}):res.json({success:true,customer:c}));});
 }));
-app.get("/api/customer/me",(req,res)=>res.json({customer:req.session.customer||null}));
+app.get("/api/customer/me",asyncRoute(async(req,res)=>{
+  if(!req.session.customer)return res.json({customer:null});
+  const {rows}=await pool.query("SELECT id,full_name,email,phone,address,city,postal_code,created_at FROM customers WHERE id=$1",[req.session.customer.id]);
+  if(!rows[0]){delete req.session.customer;return res.json({customer:null});}
+  req.session.customer={...req.session.customer,...rows[0]};res.json({customer:rows[0]});
+}));
+app.put("/api/customer/profile",customerOnly,asyncRoute(async(req,res)=>{
+  const name=String(req.body.full_name||"").trim(),phone=String(req.body.phone||"").trim(),address=String(req.body.address||"").trim(),city=String(req.body.city||"").trim(),postal=String(req.body.postal_code||"").trim();
+  if(name.length<2||name.length>100)return res.status(400).json({error:"সঠিক পূর্ণ নাম লিখুন (কমপক্ষে ২ অক্ষর)।"});
+  if(phone.length>30||address.length>1000||city.length>100||postal.length>20)return res.status(400).json({error:"তথ্য নির্ধারিত সীমার চেয়ে বড় হয়েছে।"});
+  const {rows}=await pool.query("UPDATE customers SET full_name=$1,phone=$2,address=$3,city=$4,postal_code=$5 WHERE id=$6 RETURNING id,full_name,email,phone,address,city,postal_code,created_at",[name,phone,address,city,postal,req.session.customer.id]);
+  req.session.customer={...req.session.customer,...rows[0]};res.json({success:true,customer:rows[0],message:"আপনার Profile আপডেট হয়েছে।"});
+}));
 app.post("/api/customer/logout",(req,res)=>{delete req.session.customer;req.session.save(()=>res.json({success:true}));});
-app.get("/api/customer/orders",customerOnly,asyncRoute(async(req,res)=>{const {rows}=await pool.query("SELECT id,items,total,status,created_at FROM orders WHERE customer_id=$1 ORDER BY id DESC",[req.session.customer.id]);res.json(rows)}));
+app.get("/api/customer/orders",customerOnly,asyncRoute(async(req,res)=>{const {rows}=await pool.query("SELECT id,items,total,status,created_at,city FROM orders WHERE customer_id=$1 ORDER BY id DESC",[req.session.customer.id]);res.json(rows)}));
+app.get("/api/customer/orders/:id",customerOnly,asyncRoute(async(req,res)=>{
+  const {rows}=await pool.query("SELECT id,customer_name,phone,address,city,items,subtotal,delivery_charge,total,payment_method,status,created_at FROM orders WHERE id=$1 AND customer_id=$2",[req.params.id,req.session.customer.id]);
+  if(!rows[0])return res.status(404).json({error:"এই অর্ডারটি আপনার Account-এ পাওয়া যায়নি।"});res.json(rows[0]);
+}));
 
 app.get("/api/health", asyncRoute(async (req,res) => {
   await pool.query("SELECT 1");
