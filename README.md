@@ -1,6 +1,6 @@
 # SMART FASHION — Full E-commerce Store (Bangladesh)
 
-A responsive Bengali/English fashion storefront with a premium black-and-gold visual identity, PostgreSQL backend and protected admin dashboard.
+A responsive Bengali/English fashion storefront with an app-style glass UI, PostgreSQL backend and protected admin dashboard.
 
 ## Included features
 
@@ -25,18 +25,6 @@ A responsive Bengali/English fashion storefront with a premium black-and-gold vi
 
 ### Starter catalogue
 - 20 sample products are inserted only when the products table is empty. Replace sample names, prices and images with your own catalogue from Admin → Products.
-
-## Premium redesign notes
-
-- Reworked the storefront into a restrained black, warm-white and gold visual system with editorial typography, stronger spacing, responsive navigation, category tiles, product cards, promotional content, customer-story panel and a polished newsletter/footer.
-- Restyled the customer overlays, cart, forms and admin login/dashboard to match the same luxury visual language.
-- Added quantity increase/decrease controls to the cart; quantity changes are checked against the product stock already supplied by the API.
-- Updated the PWA theme colors to match the new brand palette.
-- Existing Express routes, PostgreSQL schema/queries, customer/admin session authentication, checkout and payment-selection behavior were retained.
-
-## Scope and verified limitations
-
-This source archive does not currently implement dedicated product detail/gallery pages, product size/color variants, password reset, a customer-management admin screen, or automated payment-gateway processing. Those features were not fabricated or wired to imaginary endpoints during a visual redesign. The existing customer profile is session-based and the customer can view their own order history. bKash/Nagad remain manual-contact selections.
 
 ## Deploy on GitHub + Render
 
