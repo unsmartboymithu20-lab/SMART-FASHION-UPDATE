@@ -358,7 +358,7 @@ app.post("/api/admin/customers/:id/anonymize",adminOnly,asyncRoute(async(req,res
 }));
 app.get("/api/admin/analytics",adminOnly,asyncRoute(async(req,res)=>{
  const from=String(req.query.from||"").slice(0,10),to=String(req.query.to||"").slice(0,10);
- const validDate=x=>/^\\d{4}-\\d{2}-\\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x));
+ const validDate=x=>/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x));
  if((from&&!validDate(from))||(to&&!validDate(to)))return res.status(400).json({error:"Date range invalid"});
  const args=[];let cond="status <> 'Cancelled'";
  if(from){args.push(from);cond+=` AND created_at >= $${args.length}::date`;}
