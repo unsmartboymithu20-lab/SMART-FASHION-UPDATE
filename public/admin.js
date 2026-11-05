@@ -7,55 +7,17 @@ async function api(url,opts={}){
   return j;
 }
 async function readServerResponse(r){const raw=await r.text();let data={};if(raw){try{data=JSON.parse(raw)}catch{throw Error(`Image upload response invalid (${r.status}). Render Logs দেখুন।`)}}if(!r.ok)throw Error(data.error||`Image upload failed (${r.status})`);return data;}
-async function checkLogin(){
-  try {
-    const status=await api("/api/admin/status");
-    if(!status.configured){
-      $("loginError").textContent="Admin Login সেটআপ করা হয়নি। Render → Environment-এ ADMIN_EMAIL ও ADMIN_PASSWORD যোগ করে Redeploy করুন।";
-      $("loginError").classList.add("setup-error");
-    }
-    const j=await api("/api/admin/me");
-    if(j.admin)showDashboard();
-  } catch(err) {
-    $("loginError").textContent="সার্ভারের সাথে সংযোগ হচ্ছে না। Render-এর Deploy ও Logs পরীক্ষা করুন।";
-  }
-}
-function showDashboard(){
-  $("loginView").classList.add("hidden");
-  $("dashboard").classList.remove("hidden");
-  loadOverview();
-}
-$("loginForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const form=e.target,button=form.querySelector('button[type="submit"],button:not([type])');
-  const d=Object.fromEntries(new FormData(form));
-  d.email=String(d.email||"").trim().toLowerCase();
-  $("loginError").textContent="";
-  if(button){button.disabled=true;button.textContent="PLEASE WAIT...";}
-  try{
-    await api("/api/admin/login",{method:"POST",body:JSON.stringify(d)});
-    $("loginError").textContent="";
-    showDashboard();
-  }catch(err){
-    $("loginError").textContent=err.message;
-  }finally{
-    if(button){button.disabled=false;button.textContent="LOGIN TO DASHBOARD";}
-  }
-});
-$("logout").onclick=async()=>{
-  const button=$("logout");button.disabled=true;
-  try{await api("/api/admin/logout",{method:"POST"});location.href="/admin";}
-  catch(e){alert("Logout করা যায়নি: "+e.message);button.disabled=false;}
-};
+async function checkLogin(){let j=await api("/api/admin/me");if(j.admin)showDashboard()}
+function showDashboard(){$("loginView").classList.add("hidden");$("dashboard").classList.remove("hidden");loadOverview()}
+$("loginForm").addEventListener("submit",async e=>{e.preventDefault();let d=Object.fromEntries(new FormData(e.target));try{await api("/api/admin/login",{method:"POST",body:JSON.stringify(d)});$("loginError").textContent="";showDashboard()}catch(err){$("loginError").textContent=err.message}});
+$("logout").onclick=async()=>{await api("/api/admin/logout",{method:"POST"});location.reload()};
 document.querySelectorAll(".side[data-tab]").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
-function switchTab(tab){document.querySelectorAll(".side[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));document.querySelectorAll(".tab").forEach(x=>x.classList.add("hidden"));$("tab-"+tab).classList.remove("hidden");$("pageTitle").textContent=({overview:"Overview",products:"Products",orders:"Orders",coupons:"Coupons",reviews:"Reviews",messages:"Messages",subscribers:"Subscribers",settings:"Store Settings"})[tab];if(tab==="products")loadProducts().catch(e=>showTableError("productRows",5,e));if(tab==="orders")loadOrders().catch(e=>showTableError("orderRows",6,e));if(tab==="settings")loadSettings().catch(e=>showPanelError("settingsForm",e))}
-async function loadOverview(){try{let d=await api("/api/admin/overview");$("statProducts").textContent=d.products;$("statOrders").textContent=d.orders;$("statRevenue").textContent="৳"+Number(d.revenue).toLocaleString("en-BD");$("statPending").textContent=d.pending}catch(e){$("tab-overview").insertAdjacentHTML("beforeend",`<p class="admin-load-error">${esc(e.message)}</p>`)}}
+function switchTab(tab){document.querySelectorAll(".side[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));document.querySelectorAll(".tab").forEach(x=>x.classList.add("hidden"));$("tab-"+tab).classList.remove("hidden");$("pageTitle").textContent=({overview:"Overview",products:"Products",orders:"Orders",coupons:"Coupons",reviews:"Reviews",messages:"Messages",subscribers:"Subscribers",settings:"Store Settings"})[tab];if(tab==="products")loadProducts();if(tab==="orders")loadOrders();if(tab==="settings")loadSettings()}
+async function loadOverview(){try{let d=await api("/api/admin/overview");$("statProducts").textContent=d.products;$("statOrders").textContent=d.orders;$("statRevenue").textContent="৳"+Number(d.revenue).toLocaleString("en-BD");$("statPending").textContent=d.pending}catch(e){alert(e.message)}}
 async function loadProducts(){adminProducts=await api("/api/admin/products");$("productRows").innerHTML=adminProducts.map(p=>`<tr><td>${esc(p.name)}</td><td>৳${p.price}</td><td>${p.stock}</td><td>${esc(p.category)}</td><td><button class="table-action" onclick="editProduct(${p.id})">Edit</button><button class="table-action" onclick="deleteProduct(${p.id})">Delete</button></td></tr>`).join("")}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function showTableError(id,cols,error){const el=$(id);if(el)el.innerHTML=`<tr><td colspan="${cols}" class="admin-load-error">${esc(error.message)}</td></tr>`}
-function showPanelError(id,error){const el=$(id);if(el)el.insertAdjacentHTML("beforeend",`<p class="admin-load-error">${esc(error.message)}</p>`)}
-function newProduct(){ $("productError").textContent="";let f=$("productForm");f.reset();f.elements.id.value="";f.elements.active.checked=true;showProductPreview("");$("productModalTitle").textContent="Add Product";$("productModal").classList.add("show")}
-function editProduct(id){let p=adminProducts.find(x=>x.id===id),f=$("productForm");$("productError").textContent="";for(let k of ["id","name","category","description","price","stock","image"])f.elements[k].value=p[k]??"";f.elements.imageFile.value="";showProductPreview(p.image);f.elements.featured.checked=p.featured;f.elements.active.checked=p.active;$("productModalTitle").textContent="Edit Product";$("productModal").classList.add("show")}
+function newProduct(){let f=$("productForm");f.reset();f.elements.id.value="";f.elements.active.checked=true;showProductPreview("");$("productModalTitle").textContent="Add Product";$("productModal").classList.add("show")}
+function editProduct(id){let p=adminProducts.find(x=>x.id===id),f=$("productForm");for(let k of ["id","name","category","description","price","stock","image"])f.elements[k].value=p[k]??"";f.elements.imageFile.value="";showProductPreview(p.image);f.elements.featured.checked=p.featured;f.elements.active.checked=p.active;$("productModalTitle").textContent="Edit Product";$("productModal").classList.add("show")}
 function closeProduct(){$("productModal").classList.remove("show")}
 function showProductPreview(src){const img=$("productImagePreview");if(src){img.src=src;img.style.display="block"}else{img.removeAttribute("src");img.style.display="none"}}
 $("productImageFile").addEventListener("change",e=>{const file=e.target.files[0];if(file){if(file.size>5*1024*1024){alert("ছবি 5MB-এর কম হতে হবে");e.target.value="";return}showProductPreview(URL.createObjectURL(file))}});
@@ -67,11 +29,7 @@ async function loadSettings(){let d=await api("/api/settings"),f=$("settingsForm
 $("settingsForm").addEventListener("submit",async e=>{e.preventDefault();try{await api("/api/admin/settings",{method:"PUT",body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});alert("Settings saved")}catch(err){alert(err.message)}});
 checkLogin().catch(()=>{});// Additional store operations
 const oldSwitchTab=switchTab;
-switchTab=function(tab){
-  oldSwitchTab(tab);
-  const tasks={coupons:()=>loadCoupons().catch(e=>showTableError("couponRows",4,e)),reviews:()=>loadReviews().catch(e=>showTableError("reviewRows",4,e)),messages:()=>loadMessages().catch(e=>showTableError("messageRows",4,e)),subscribers:()=>loadSubscribers().catch(e=>showTableError("subscriberRows",2,e))};
-  if(tasks[tab])tasks[tab]();
-};
+switchTab=function(tab){oldSwitchTab(tab);if(tab==="coupons")loadCoupons();if(tab==="reviews")loadReviews();if(tab==="messages")loadMessages();if(tab==="subscribers")loadSubscribers()};
 async function loadCoupons(){const rows=await api("/api/admin/coupons");$("couponRows").innerHTML=rows.map(c=>`<tr><td><b>${esc(c.code)}</b></td><td>${c.discount_type==="percent"?c.discount_value+"%":"৳"+c.discount_value}</td><td>${c.used_count}${c.max_uses?" / "+c.max_uses:""}</td><td><button class="table-action" onclick="deleteCoupon(${c.id})">Delete</button></td></tr>`).join("")||"<tr><td colspan='4'>No coupons yet</td></tr>"}
 $("couponForm").addEventListener("submit",async e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.target));if(!d.max_uses)delete d.max_uses;if(!d.expires_at)delete d.expires_at;try{await api("/api/admin/coupons",{method:"POST",body:JSON.stringify(d)});e.target.reset();loadCoupons()}catch(err){alert(err.message)}});
 async function deleteCoupon(id){if(!confirm("Delete this coupon?"))return;await api("/api/admin/coupons/"+id,{method:"DELETE"});loadCoupons()}
