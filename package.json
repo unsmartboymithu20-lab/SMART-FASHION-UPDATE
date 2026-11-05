@@ -1,24 +1,19 @@
 {
   "name": "smart-fashion",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Bangladesh-ready responsive fashion ecommerce store with admin panel",
+  "description": "SMART FASHION Bangladesh - responsive MongoDB e-commerce website",
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
-  },
-  "engines": {
-    "node": ">=20"
-  },
+  "scripts": {"start":"node server.js","dev":"node --watch server.js","check":"node --check server.js"},
+  "engines": {"node":">=20"},
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "connect-pg-simple": "^10.0.0",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.2",
-    "express-session": "^1.18.1",
-    "helmet": "^8.0.0",
-    "pg": "^8.13.1",
-    "multer": "^1.4.5-lts.1"
+    "bcryptjs":"^2.4.3",
+    "connect-mongo":"^5.1.0",
+    "dotenv":"^16.4.5",
+    "express":"^4.21.2",
+    "express-session":"^1.18.1",
+    "helmet":"^8.0.0",
+    "mongoose":"^8.9.5",
+    "multer":"^1.4.5-lts.1"
   }
 }

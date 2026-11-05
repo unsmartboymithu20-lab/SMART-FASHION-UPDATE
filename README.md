@@ -1,107 +1,88 @@
-# SMART FASHION — Full E-commerce Store (Bangladesh)
+# SMART FASHION — Complete E-commerce Website
 
-A responsive Bengali/English fashion storefront with an app-style glass UI, PostgreSQL backend and protected admin dashboard.
+Responsive Bangladesh fashion store with customer accounts, product catalogue, cart, checkout, order tracking and protected admin panel. Backend uses **MongoDB Atlas** (not PostgreSQL) and is configured for **GitHub + Render** deployment.
 
-## Included features
+## Included
 
-### Customer storefront
-- Responsive desktop, tablet and mobile layout with sticky glass header and fixed bottom app navigation.
-- Dynamic product categories (new categories appear when products are assigned to them), live search, featured products and stock display.
-- Product cards, wishlist saved in the visitor's browser, cart saved in the browser and checkout.
-- Cash on Delivery plus bKash/Nagad manual-contact payment selections.
-- Coupon validation and discount calculation at checkout.
-- Order tracking using order ID + the phone number entered at checkout.
-- Customer reviews (admin approval required), contact form and newsletter signup.
-- Delivery, return/exchange and privacy policy information.
+- Mobile-first storefront with responsive desktop layout and fixed mobile bottom navigation.
+- Home, category filtering, live search, product cards, wishlist, cart and checkout.
+- Customer registration, login, logout and personal order history.
+- Server-side price/stock checks, order creation, delivery charge and coupon validation.
+- Cash on Delivery plus bKash/Nagad manual-payment selection.
+- Order tracking by order ID and checkout phone number.
+- Product reviews with admin approval, contact messages and newsletter subscriptions.
+- Protected admin login and dashboard: products, gallery image upload, orders/status, coupons, reviews, messages, subscribers and store settings.
+- 20 demo products inserted only when the MongoDB products collection is empty.
+- MongoDB-backed sessions; session survives Render restarts while MongoDB remains available.
 
-### Admin dashboard (`/admin`)
-- Secure email/password login with hashed password and session-based authentication.
-- Overview: product count, order count, non-cancelled revenue and pending orders.
-- Product create/edit/delete, category, price, stock, image URL, featured and visibility controls.
-- Order list and status management. Cancelling an order restores its reserved stock; cancelled orders cannot be reopened.
-- Coupon creation/deletion with percentage/fixed discount, minimum order, usage limit and expiry.
-- Review moderation (approve/hide/delete), customer messages and newsletter subscribers.
-- Store settings: store name, delivery fee, announcement, phone/address, hero text/image, promo text and social/contact URLs.
+## Deploy to Render (recommended)
 
-### Starter catalogue
-- 20 sample products are inserted only when the products table is empty. Replace sample names, prices and images with your own catalogue from Admin → Products.
+### 1. MongoDB Atlas
 
-## Deploy on GitHub + Render
+1. Create a MongoDB Atlas cluster and database user.
+2. In Atlas → Network Access, allow Render to connect. For a simple first deployment you can allow `0.0.0.0/0` and use a strong database password; for stricter security configure Render's outbound IP allowlist where available.
+3. Copy the application connection string. It should look like:
+   `mongodb+srv://USERNAME:PASSWORD@CLUSTER.mongodb.net/smart-fashion?retryWrites=true&w=majority`
+4. Replace the username/password and URL-encode special characters in the password.
 
-1. Extract this ZIP. Upload the **contents of the `smart-fashion` folder** to the root of a GitHub repository (do not upload only the ZIP).
-2. In Render, create a PostgreSQL database. Copy its **Internal Database URL**.
-3. Create a Render Web Service connected to that GitHub repository. Use:
-   - Build command: `npm install`
-   - Start command: `npm start`
-4. Add environment variables to the Web Service:
-   - `DATABASE_URL` = Render PostgreSQL Internal Database URL
-   - `DB_SSL` = `true`
-   - `NODE_ENV` = `production`
-   - `ADMIN_EMAIL` = your admin email
-   - `ADMIN_PASSWORD` = a strong unique password
-   - `SESSION_SECRET` = a long random secret (at least 32 random characters)
-5. Deploy. Open `https://YOUR-SERVICE.onrender.com/admin` and sign in with the configured admin email/password.
+### 2. GitHub
 
-`render.yaml` is included as a deployment blueprint. The storefront includes a PWA manifest and app icons; on supported mobile browsers, users can install it from the browser menu. Keep the database and web service in the same region where possible. Never commit `.env`, database URLs, or passwords to GitHub.
+1. Extract this ZIP.
+2. Open the `smart-fashion` folder.
+3. Upload the **contents of this folder** to the root of a new GitHub repository. Do not upload only the ZIP or an extra nested folder.
+4. Do not upload `.env` or real passwords. `.env` is ignored by Git.
 
-## Local development
+### 3. Render Web Service
+
+1. In Render choose **New → Web Service** and connect the GitHub repository.
+2. Runtime: Node. Build command: `npm install`. Start command: `npm start`.
+3. Add these Environment Variables:
+
+| Key | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `MONGODB_URI` | Your complete MongoDB Atlas connection string |
+| `ADMIN_EMAIL` | Your own admin email |
+| `ADMIN_PASSWORD` | A strong unique admin password (at least 12 characters) |
+| `SESSION_SECRET` | A random secret string of at least 32 characters |
+
+`PORT` is provided by Render automatically. `render.yaml` is included as a Blueprint option, but you must still enter the secret values.
+
+4. Deploy. Wait until the Render logs say `MongoDB connected` and `SMART FASHION running`.
+5. Open `https://YOUR-SERVICE.onrender.com/` for the store and `https://YOUR-SERVICE.onrender.com/admin` for the admin panel.
+6. Sign in with `ADMIN_EMAIL` and `ADMIN_PASSWORD` configured in Render.
+
+## Local run
 
 ```bash
 npm install
 cp .env.example .env
-# Set DATABASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD and SESSION_SECRET in .env
+# Edit .env and add a valid MONGODB_URI, ADMIN_EMAIL, ADMIN_PASSWORD, SESSION_SECRET
 npm run dev
 ```
 
-Open `http://localhost:3000` for the store and `http://localhost:3000/admin` for administration.
+Open `http://localhost:3000` and `http://localhost:3000/admin`.
 
-## Important production notes
+## Important payment and launch notes
 
-- **bKash/Nagad are manual-contact payment selections only.** Automatic collection, payment verification and refunds require merchant credentials and an approved payment gateway integration. Do not represent a manual selection as a completed online payment.
-- Sample product images are remote demo images. Use product photos you own. Admin product images can be uploaded from a device gallery (JPG, PNG, WEBP or GIF, up to 5 MB) and are stored in PostgreSQL as data URLs. Large catalogues should use dedicated object storage such as Cloudinary or S3 to reduce database size.
-- Contact messages and newsletter subscriptions are saved in the database; email/SMS/WhatsApp notifications are not automatically sent by this starter.
-- Configure your real delivery, return, privacy and customer support policies before launch. Review local legal/tax requirements.
-- Use a strong admin password and unique session secret. Keep PostgreSQL backups enabled and monitor Render logs/database usage. Free-tier availability, sleep and database-retention terms can change.
-- Before a high-volume launch, add a transactional email/SMS provider, image storage, rate limiting, automated tests, monitoring and a formal backup/restore procedure.
+- bKash/Nagad are **manual payment selections only** in this build. The site does not automatically collect or verify payments. Automatic payment requires an approved merchant account and official gateway credentials/integration.
+- Product gallery uploads are stored as base64 data URLs in MongoDB. This keeps images across Render deploys, but for a large catalogue use Cloudinary or S3 to avoid growing database documents.
+- Contact form messages and newsletter addresses are stored in MongoDB; outbound email/SMS/WhatsApp notifications are not configured.
+- Replace demo products, images, store contact details, delivery charge and policy text before accepting real orders.
+- Use a strong database password and admin password. Never put secrets in GitHub. Keep MongoDB backups enabled and check Render logs after deployment.
+- This project is a functional starter store, not a substitute for independent security review, payment gateway certification, tax/legal review or load testing before a high-volume launch.
 
-## Main files
+## Troubleshooting
 
-- `server.js` — API, database schema, sessions and order logic
-- `public/index.html`, `public/style.css`, `public/store.js` — storefront
-- `public/admin.html`, `public/admin.js` — admin dashboard
-- `render.yaml` — Render blueprint
-- `.env.example` — environment variable template
+- **MongoDB connection error:** confirm `MONGODB_URI`, Atlas database username/password, URL-encoded special characters and Atlas Network Access.
+- **Admin login fails:** check `ADMIN_EMAIL` and `ADMIN_PASSWORD` in the Render service environment, then redeploy. The configured admin password is hashed in MongoDB at startup.
+- **Images too large:** uploads accept JPG, PNG, WEBP and GIF up to 5 MB each.
+- **Service sleeps:** Render free services may sleep when idle depending on current plan terms; the first request can take longer.
 
+## Project files
 
-## Customer account & product gallery (updated)
-- Admin API responses are parsed safely; upload errors now return readable JSON messages rather than causing an empty-response JSON parsing error. Image uploads explicitly include the same-origin admin session cookie.
-- Multer upload errors (including files over 5 MB and unsupported formats) are handled as JSON responses.
-- Customers can register, login and logout from the Account item in the mobile bottom navigation. Checkout requires a customer login; orders are saved to that customer's account and shown under My Orders.
-- Admins can add/edit products and choose a product photo directly from a phone or computer gallery using the Product Image picker. JPG, PNG, WEBP and GIF are accepted up to 5 MB. Images are stored as data URLs in PostgreSQL, so they remain available after Render redeploys (no ephemeral local uploads folder).
-- New dependency: `multer` (installed automatically during deployment from `package.json`). Existing databases are migrated automatically when the server starts; existing products and orders are preserved.
-
-
-## Stability and responsive update (2026-11)
-
-- Admin login now checks whether `ADMIN_EMAIL` and `ADMIN_PASSWORD` are configured and gives a direct setup message instead of silently failing.
-- Admin email input is trimmed and normalized to lowercase. Login now shows progress and readable connection/configuration errors.
-- Admin dashboard data-loading failures are shown inside the relevant panel/table.
-- Admin login and dashboard have been redesigned with a premium purple/ink visual system and improved small-screen navigation.
-- Store footer has been rebuilt into a responsive brand, links and copyright layout, with enough bottom spacing for the mobile navigation.
-- Production startup now refuses an unsafe/missing `SESSION_SECRET` (minimum 32 characters). The health endpoint also verifies PostgreSQL connectivity.
-- `/admin` responses are sent with `Cache-Control: no-store`.
-
-### Required Render environment variables
-
-Confirm these exist in **Render → Web Service → Environment**:
-
-| Key | Required value |
-|---|---|
-| `DATABASE_URL` | Internal URL of the Render PostgreSQL database |
-| `DB_SSL` | `true` for Render PostgreSQL |
-| `NODE_ENV` | `production` |
-| `SESSION_SECRET` | At least 32 random characters |
-| `ADMIN_EMAIL` | Your own admin email |
-| `ADMIN_PASSWORD` | Your own strong, unique admin password |
-
-After changing environment variables, trigger a new deploy. Do not share the admin password or commit it to GitHub. The ZIP can be syntax-checked locally, but real login/order testing still requires your live PostgreSQL database and Render environment.
+- `server.js` — Express API, MongoDB models/collections, auth, orders and admin routes.
+- `public/index.html`, `public/style.css`, `public/store.js` — responsive storefront.
+- `public/admin.html`, `public/admin.js` — admin dashboard.
+- `render.yaml` — Render Blueprint.
+- `.env.example` — environment variable template.
