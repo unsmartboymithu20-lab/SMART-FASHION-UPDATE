@@ -105,3 +105,11 @@ Confirm these exist in **Render → Web Service → Environment**:
 | `ADMIN_PASSWORD` | Your own strong, unique admin password |
 
 After changing environment variables, trigger a new deploy. Do not share the admin password or commit it to GitHub. The ZIP can be syntax-checked locally, but real login/order testing still requires your live PostgreSQL database and Render environment.
+
+
+## Product details and gallery updates
+- Product cards now open a dedicated `/product/:id` page instead of a popup.
+- Product detail pages support an image gallery, selectable colors and sizes, add-to-cart, and related products.
+- Admin product editor supports multiple image uploads (up to 30, 5MB each), URL-based gallery images, and removing individual gallery images while editing.
+- Product colors and sizes are configurable per product in the admin editor.
+- Existing products are preserved; startup database migrations add the new gallery, color, and size fields automatically.

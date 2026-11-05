@@ -46,9 +46,13 @@ async function initDb() {
       id SERIAL PRIMARY KEY, name TEXT NOT NULL, category TEXT DEFAULT 'Fashion',
       description TEXT DEFAULT '', price NUMERIC(12,2) NOT NULL DEFAULT 0,
       stock INTEGER NOT NULL DEFAULT 0, image TEXT DEFAULT '',
+      images JSONB NOT NULL DEFAULT '[]'::jsonb, colors JSONB NOT NULL DEFAULT '[]'::jsonb, sizes JSONB NOT NULL DEFAULT '[]'::jsonb,
       featured BOOLEAN DEFAULT FALSE, active BOOLEAN DEFAULT TRUE,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS colors JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE products ADD COLUMN IF NOT EXISTS sizes JSONB NOT NULL DEFAULT '[]'::jsonb;
     CREATE TABLE IF NOT EXISTS orders (
       id SERIAL PRIMARY KEY, customer_name TEXT NOT NULL, phone TEXT NOT NULL,
       address TEXT NOT NULL, city TEXT DEFAULT 'Bangladesh',
@@ -131,7 +135,7 @@ const asyncRoute = fn => (req,res,next) => Promise.resolve(fn(req,res,next)).cat
 const customerOnly = (req,res,next) => req.session.customer ? next() : res.status(401).json({error:"অর্ডার করতে আগে Customer Account-এ Login করুন।"});
 const uploadImage = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  limits: { fileSize: 5 * 1024 * 1024, files: 30 },
   fileFilter: (req, file, cb) => {
     const allowed = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
     if (!allowed.has(file.mimetype)) return cb(new Error("শুধু JPG, PNG, WEBP বা GIF ছবি আপলোড করা যাবে।"));
@@ -183,7 +187,7 @@ app.post("/api/orders", customerOnly, asyncRoute(async (req,res) => {
     const {rows:products}=await client.query("SELECT * FROM products WHERE id=ANY($1::int[]) AND active=true ORDER BY id FOR UPDATE",[ids]);
     if(products.length!==ids.length)throw Object.assign(new Error("একটি পণ্য পাওয়া যাচ্ছে না।"),{status:400});
     let normalized=[],subtotal=0;
-    for(const p of products){const qty=quantities.get(p.id);if(Number(p.stock)<qty)throw Object.assign(new Error(`${p.name} স্টকে পর্যাপ্ত নেই।`),{status:400});normalized.push({id:p.id,name:p.name,price:Number(p.price),qty});subtotal+=Number(p.price)*qty;}
+    for(const p of products){const qty=quantities.get(p.id);if(Number(p.stock)<qty)throw Object.assign(new Error(`${p.name} স্টকে পর্যাপ্ত নেই।`),{status:400});for(const item of items.filter(x=>Number(x.id)===p.id)){const lineQty=Number(item.qty);normalized.push({id:p.id,name:p.name,price:Number(p.price),qty:lineQty,color:String(item.color||""),size:String(item.size||"")});subtotal+=Number(p.price)*lineQty;}}
     const sr=await client.query("SELECT value FROM settings WHERE key='delivery_charge'");
     const delivery=Math.max(0,Number(sr.rows[0]?.value||80));
     const couponCode=String(req.body.coupon_code||"").trim().toUpperCase();let discount=0;
@@ -231,9 +235,10 @@ app.post("/api/admin/login", asyncRoute(async (req,res) => {
 }));
 app.post("/api/admin/logout", (req,res)=>req.session.destroy(()=>{res.clearCookie("connect.sid");res.json({success:true});}));
 app.get("/api/admin/me",(req,res)=>res.json({admin:req.session.admin||null}));
-app.post("/api/admin/upload-image",adminOnly,(req,res,next)=>uploadImage.single("image")(req,res,err=>{if(err){if(err.code==="LIMIT_FILE_SIZE")return res.status(413).json({error:"ছবির সাইজ 5MB-এর বেশি। ছোট ছবি দিন।"});return res.status(400).json({error:err.message||"ছবি আপলোড করা যায়নি।"});}next();}),(req,res)=>{
-  if(!req.file)return res.status(400).json({error:"Gallery থেকে JPG, PNG, WEBP বা GIF ছবি নির্বাচন করুন (সর্বোচ্চ 5MB)।"});
-  const image=`data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;res.json({success:true,image});
+app.post("/api/admin/upload-images",adminOnly,(req,res,next)=>uploadImage.array("images",30)(req,res,err=>{if(err){if(err.code==="LIMIT_FILE_SIZE")return res.status(413).json({error:"প্রতিটি ছবির সাইজ 5MB-এর বেশি হতে পারবে না।"});return res.status(400).json({error:err.message||"ছবি আপলোড করা যায়নি।"});}next();}),(req,res)=>{
+  if(!req.files?.length)return res.status(400).json({error:"এক বা একাধিক ছবি নির্বাচন করুন।"});
+  const images=req.files.map(f=>`data:${f.mimetype};base64,${f.buffer.toString("base64")}`);
+  res.json({success:true,images});
 });
 app.get("/api/admin/products",adminOnly,asyncRoute(async(req,res)=>{
   const {rows}=await pool.query("SELECT * FROM products ORDER BY id DESC"); res.json(rows);
@@ -241,18 +246,19 @@ app.get("/api/admin/products",adminOnly,asyncRoute(async(req,res)=>{
 app.post("/api/admin/products",adminOnly,asyncRoute(async(req,res)=>{
   const p=req.body;
   if(!p.name || Number(p.price)<0) return res.status(400).json({error:"পণ্যের নাম ও সঠিক দাম দিন"});
+  const images=Array.isArray(p.images)?p.images:[]; const image=p.image||images[0]||"";
   const {rows}=await pool.query(
-    `INSERT INTO products(name,category,description,price,stock,image,featured,active)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-    [p.name,p.category||"Fashion",p.description||"",Number(p.price),Number(p.stock)||0,p.image||"",!!p.featured,p.active!==false]);
+    `INSERT INTO products(name,category,description,price,stock,image,images,colors,sizes,featured,active)
+     VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10,$11) RETURNING *`,
+    [p.name,p.category||"Fashion",p.description||"",Number(p.price),Number(p.stock)||0,image,JSON.stringify(images),JSON.stringify(p.colors||[]),JSON.stringify(p.sizes||[]),!!p.featured,p.active!==false]);
   res.json(rows[0]);
 }));
 app.put("/api/admin/products/:id",adminOnly,asyncRoute(async(req,res)=>{
-  const p=req.body;
+  const p=req.body; const images=Array.isArray(p.images)?p.images:[]; const image=p.image||images[0]||"";
   const {rows}=await pool.query(
-    `UPDATE products SET name=$1,category=$2,description=$3,price=$4,stock=$5,image=$6,featured=$7,active=$8
-     WHERE id=$9 RETURNING *`,
-    [p.name,p.category||"Fashion",p.description||"",Number(p.price),Number(p.stock)||0,p.image||"",!!p.featured,p.active!==false,req.params.id]);
+    `UPDATE products SET name=$1,category=$2,description=$3,price=$4,stock=$5,image=$6,images=$7::jsonb,colors=$8::jsonb,sizes=$9::jsonb,featured=$10,active=$11
+     WHERE id=$12 RETURNING *`,
+    [p.name,p.category||"Fashion",p.description||"",Number(p.price),Number(p.stock)||0,image,JSON.stringify(images),JSON.stringify(p.colors||[]),JSON.stringify(p.sizes||[]),!!p.featured,p.active!==false,req.params.id]);
   if(!rows[0]) return res.status(404).json({error:"Product not found"}); res.json(rows[0]);
 }));
 app.delete("/api/admin/products/:id",adminOnly,asyncRoute(async(req,res)=>{
@@ -288,6 +294,7 @@ app.patch("/api/admin/reviews/:id",adminOnly,asyncRoute(async(req,res)=>{const {
 app.delete("/api/admin/reviews/:id",adminOnly,asyncRoute(async(req,res)=>{await pool.query("DELETE FROM reviews WHERE id=$1",[req.params.id]);res.json({success:true})}));
 app.get("/api/admin/messages",adminOnly,asyncRoute(async(req,res)=>{const {rows}=await pool.query("SELECT * FROM messages ORDER BY id DESC");res.json(rows)}));
 app.get("/api/admin/subscribers",adminOnly,asyncRoute(async(req,res)=>{const {rows}=await pool.query("SELECT * FROM subscribers ORDER BY id DESC");res.json(rows)}));
+app.get("/product/:id",(req,res)=>res.sendFile(path.join(__dirname,"public","product.html")));
 app.get("/admin",(req,res)=>res.sendFile(path.join(__dirname,"public","admin.html"),{headers:{"Cache-Control":"no-store"}}));
 app.get("*",(req,res)=>res.sendFile(path.join(__dirname,"public","index.html")));
 app.use((err,req,res,next)=>{
