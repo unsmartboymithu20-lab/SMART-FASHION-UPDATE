@@ -81,31 +81,6 @@ async function initDb() {
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL;
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT DEFAULT '';
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount NUMERIC(12,2) NOT NULL DEFAULT 0;
-    ALTER TABLE customers ADD COLUMN IF NOT EXISTS address TEXT NOT NULL DEFAULT '';
-    ALTER TABLE customers ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT '';
-    ALTER TABLE customers ADD COLUMN IF NOT EXISTS profile_image TEXT NOT NULL DEFAULT '';
-    ALTER TABLE customers ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
-    ALTER TABLE products ADD COLUMN IF NOT EXISTS sku TEXT;
-    ALTER TABLE products ADD COLUMN IF NOT EXISTS compare_price NUMERIC(12,2);
-    ALTER TABLE products ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
-    ALTER TABLE products ADD COLUMN IF NOT EXISTS images JSONB NOT NULL DEFAULT '[]'::jsonb;
-    ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB NOT NULL DEFAULT '[]'::jsonb;
-    ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'Pending';
-    ALTER TABLE orders ADD COLUMN IF NOT EXISTS status_history JSONB NOT NULL DEFAULT '[]'::jsonb;
-    CREATE TABLE IF NOT EXISTS inventory_movements (
-      id BIGSERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
-      variant_key TEXT DEFAULT '', change_qty INTEGER NOT NULL, reason TEXT NOT NULL DEFAULT 'adjustment',
-      order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL, created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-    CREATE TABLE IF NOT EXISTS password_resets (
-      id BIGSERIAL PRIMARY KEY, customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-      token_hash TEXT NOT NULL UNIQUE, expires_at TIMESTAMPTZ NOT NULL, used_at TIMESTAMPTZ,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS idx_orders_customer_created ON orders(customer_id, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_orders_status_created ON orders(status, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_products_active_category ON products(active, category);
-    CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
   `);
   const email = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
   const password = String(process.env.ADMIN_PASSWORD || "");
@@ -153,13 +128,7 @@ async function initDb() {
     ON CONFLICT(key) DO NOTHING`);
 }
 const asyncRoute = fn => (req,res,next) => Promise.resolve(fn(req,res,next)).catch(next);
-const customerOnly = (req,res,next) => {
-  if(!req.session.customer)return res.status(401).json({error:"অর্ডার করতে আগে Customer Account-এ Login করুন।"});
-  pool.query("SELECT active FROM customers WHERE id=$1",[req.session.customer.id]).then(({rows})=>{
-    if(!rows[0]||!rows[0].active){delete req.session.customer;return res.status(403).json({error:"এই Customer Account নিষ্ক্রিয়।"});}
-    next();
-  }).catch(next);
-};
+const customerOnly = (req,res,next) => req.session.customer ? next() : res.status(401).json({error:"অর্ডার করতে আগে Customer Account-এ Login করুন।"});
 const uploadImage = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 1 },
@@ -180,31 +149,11 @@ app.post("/api/customer/register",asyncRoute(async(req,res)=>{
 }));
 app.post("/api/customer/login",asyncRoute(async(req,res)=>{
   const email=String(req.body.email||"").trim().toLowerCase(),password=String(req.body.password||"");const {rows}=await pool.query("SELECT * FROM customers WHERE email=$1",[email]);
-  if(!rows[0]||rows[0].active===false||!(await bcrypt.compare(password,rows[0].password_hash)))return res.status(401).json({error:"ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।"});
+  if(!rows[0]||!(await bcrypt.compare(password,rows[0].password_hash)))return res.status(401).json({error:"ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।"});
   const c={id:rows[0].id,full_name:rows[0].full_name,email:rows[0].email,phone:rows[0].phone};
   req.session.regenerate(err=>{if(err)return res.status(500).json({error:"Session তৈরি হয়নি"});req.session.customer=c;req.session.save(e=>e?res.status(500).json({error:"Session save হয়নি"}):res.json({success:true,customer:c}));});
 }));
 app.get("/api/customer/me",(req,res)=>res.json({customer:req.session.customer||null}));
-app.get("/api/customer/profile",customerOnly,asyncRoute(async(req,res)=>{
- const {rows}=await pool.query("SELECT id,full_name,email,phone,address,city,profile_image,active,created_at FROM customers WHERE id=$1",[req.session.customer.id]);
- if(!rows[0]||!rows[0].active)return res.status(403).json({error:"Account নিষ্ক্রিয়।"});
- res.json(rows[0]);
-}));
-app.put("/api/customer/profile",customerOnly,asyncRoute(async(req,res)=>{
- const name=String(req.body.full_name||"").trim(),phone=String(req.body.phone||"").trim(),address=String(req.body.address||"").trim(),city=String(req.body.city||"").trim(),profile=String(req.body.profile_image||"");
- if(name.length<2||name.length>100||phone.length>30||address.length>1000||city.length>100||profile.length>7*1024*1024)return res.status(400).json({error:"প্রোফাইলের তথ্য সঠিক নয়।"});
- const {rows}=await pool.query("UPDATE customers SET full_name=$1,phone=$2,address=$3,city=$4,profile_image=$5 WHERE id=$6 AND active=true RETURNING id,full_name,email,phone,address,city,profile_image,active,created_at",[name,phone,address,city,profile,req.session.customer.id]);
- if(!rows[0])return res.status(404).json({error:"Customer পাওয়া যায়নি।"});
- req.session.customer={...req.session.customer,full_name:rows[0].full_name,phone:rows[0].phone};res.json(rows[0]);
-}));
-app.post("/api/customer/change-password",customerOnly,asyncRoute(async(req,res)=>{
- const oldPassword=String(req.body.old_password||""),newPassword=String(req.body.new_password||"");
- if(newPassword.length<8||newPassword.length>200)return res.status(400).json({error:"নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।"});
- const {rows}=await pool.query("SELECT password_hash FROM customers WHERE id=$1 AND active=true",[req.session.customer.id]);
- if(!rows[0]||!(await bcrypt.compare(oldPassword,rows[0].password_hash)))return res.status(400).json({error:"বর্তমান পাসওয়ার্ড সঠিক নয়।"});
- await pool.query("UPDATE customers SET password_hash=$1 WHERE id=$2",[await bcrypt.hash(newPassword,12),req.session.customer.id]);res.json({success:true});
-}));
-
 app.post("/api/customer/logout",(req,res)=>{delete req.session.customer;req.session.save(()=>res.json({success:true}));});
 app.get("/api/customer/orders",customerOnly,asyncRoute(async(req,res)=>{const {rows}=await pool.query("SELECT id,items,total,status,created_at FROM orders WHERE customer_id=$1 ORDER BY id DESC",[req.session.customer.id]);res.json(rows)}));
 
@@ -242,7 +191,7 @@ app.post("/api/orders", customerOnly, asyncRoute(async (req,res) => {
     const total=Math.max(0,subtotal+delivery-discount);
     const result=await client.query(`INSERT INTO orders(customer_id,customer_name,phone,address,city,items,subtotal,delivery_charge,total,payment_method,coupon_code,discount) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,[req.session.customer.id,String(customer_name).slice(0,100),String(phone).slice(0,30),String(address).slice(0,1000),String(city||"Bangladesh").slice(0,100),JSON.stringify(normalized),subtotal,delivery,total,String(payment_method||"Cash on Delivery").slice(0,50),couponCode,discount]);
     if(couponCode)await client.query("UPDATE coupons SET used_count=used_count+1 WHERE code=$1",[couponCode]);
-    for(const item of normalized){await client.query("UPDATE products SET stock=stock-$1 WHERE id=$2",[item.qty,item.id]);await client.query("INSERT INTO inventory_movements(product_id,change_qty,reason,order_id) VALUES($1,$2,'order placed',$3)",[item.id,-item.qty,result.rows[0].id]);}
+    for(const item of normalized)await client.query("UPDATE products SET stock=stock-$1 WHERE id=$2",[item.qty,item.id]);
     await client.query("COMMIT");res.json({success:true,order_id:result.rows[0].id,total,discount});
   }catch(e){await client.query("ROLLBACK");if(e.status)return res.status(e.status).json({error:e.message});throw e;}finally{client.release();}
 }));
@@ -293,17 +242,17 @@ app.post("/api/admin/products",adminOnly,asyncRoute(async(req,res)=>{
   const p=req.body;
   if(!p.name || Number(p.price)<0) return res.status(400).json({error:"পণ্যের নাম ও সঠিক দাম দিন"});
   const {rows}=await pool.query(
-    `INSERT INTO products(name,category,description,price,stock,image,featured,active,sku,compare_price,tags,images,variants)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb) RETURNING *`,
-    [String(p.name||"").trim().slice(0,180),p.category||"Fashion",p.description||"",Number(p.price),Math.max(0,Number(p.stock)||0),p.image||"",!!p.featured,p.active!==false,p.sku||null,p.compare_price===""||p.compare_price==null?null:Number(p.compare_price),Array.isArray(p.tags)?p.tags.map(String).slice(0,30):[],JSON.stringify(Array.isArray(p.images)?p.images.slice(0,20):[]),JSON.stringify(Array.isArray(p.variants)?p.variants.slice(0,100):[])]);
+    `INSERT INTO products(name,category,description,price,stock,image,featured,active)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    [p.name,p.category||"Fashion",p.description||"",Number(p.price),Number(p.stock)||0,p.image||"",!!p.featured,p.active!==false]);
   res.json(rows[0]);
 }));
 app.put("/api/admin/products/:id",adminOnly,asyncRoute(async(req,res)=>{
   const p=req.body;
   const {rows}=await pool.query(
-    `UPDATE products SET name=$1,category=$2,description=$3,price=$4,stock=$5,image=$6,featured=$7,active=$8,sku=$9,compare_price=$10,tags=$11,images=$12::jsonb,variants=$13::jsonb
-     WHERE id=$14 RETURNING *`,
-    [String(p.name||"").trim().slice(0,180),p.category||"Fashion",p.description||"",Number(p.price),Math.max(0,Number(p.stock)||0),p.image||"",!!p.featured,p.active!==false,p.sku||null,p.compare_price===""||p.compare_price==null?null:Number(p.compare_price),Array.isArray(p.tags)?p.tags.map(String).slice(0,30):[],JSON.stringify(Array.isArray(p.images)?p.images.slice(0,20):[]),JSON.stringify(Array.isArray(p.variants)?p.variants.slice(0,100):[]),req.params.id]);
+    `UPDATE products SET name=$1,category=$2,description=$3,price=$4,stock=$5,image=$6,featured=$7,active=$8
+     WHERE id=$9 RETURNING *`,
+    [p.name,p.category||"Fashion",p.description||"",Number(p.price),Number(p.stock)||0,p.image||"",!!p.featured,p.active!==false,req.params.id]);
   if(!rows[0]) return res.status(404).json({error:"Product not found"}); res.json(rows[0]);
 }));
 app.delete("/api/admin/products/:id",adminOnly,asyncRoute(async(req,res)=>{
@@ -315,7 +264,7 @@ app.get("/api/admin/orders",adminOnly,asyncRoute(async(req,res)=>{
 app.patch("/api/admin/orders/:id",adminOnly,asyncRoute(async(req,res)=>{
   const allowed=["Pending","Confirmed","Processing","Shipped","Delivered","Cancelled"];
   if(!allowed.includes(req.body.status)) return res.status(400).json({error:"Invalid status"});
-  const client=await pool.connect();try{await client.query("BEGIN");const found=await client.query("SELECT * FROM orders WHERE id=$1 FOR UPDATE",[req.params.id]);if(!found.rows.length){await client.query("ROLLBACK");return res.status(404).json({error:"Order not found"});}const order=found.rows[0];if(order.status==="Cancelled"&&req.body.status!=="Cancelled"){await client.query("ROLLBACK");return res.status(400).json({error:"Cancelled order cannot be reopened. Create a new order instead."});}if(order.status!=="Cancelled"&&req.body.status==="Cancelled"){for(const item of order.items||[]){await client.query("UPDATE products SET stock=stock+$1 WHERE id=$2",[item.qty,item.id]);await client.query("INSERT INTO inventory_movements(product_id,change_qty,reason,order_id) VALUES($1,$2,'order cancelled',$3)",[item.id,item.qty,order.id]);}}const history=Array.isArray(order.status_history)?order.status_history:[];history.push({status:req.body.status,at:new Date().toISOString()});const {rows}=await client.query("UPDATE orders SET status=$1,status_history=$2::jsonb WHERE id=$3 RETURNING *",[req.body.status,JSON.stringify(history),req.params.id]);await client.query("COMMIT");res.json(rows[0]);}catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
+  const client=await pool.connect();try{await client.query("BEGIN");const found=await client.query("SELECT * FROM orders WHERE id=$1 FOR UPDATE",[req.params.id]);if(!found.rows.length){await client.query("ROLLBACK");return res.status(404).json({error:"Order not found"});}const order=found.rows[0];if(order.status==="Cancelled"&&req.body.status!=="Cancelled"){await client.query("ROLLBACK");return res.status(400).json({error:"Cancelled order cannot be reopened. Create a new order instead."});}if(order.status!=="Cancelled"&&req.body.status==="Cancelled"){for(const item of order.items||[])await client.query("UPDATE products SET stock=stock+$1 WHERE id=$2",[item.qty,item.id]);}const {rows}=await client.query("UPDATE orders SET status=$1 WHERE id=$2 RETURNING *",[req.body.status,req.params.id]);await client.query("COMMIT");res.json(rows[0]);}catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();}
 }));
 app.get("/api/admin/overview",adminOnly,asyncRoute(async(req,res)=>{
   const [p,o,s]=await Promise.all([
@@ -323,66 +272,8 @@ app.get("/api/admin/overview",adminOnly,asyncRoute(async(req,res)=>{
     pool.query("SELECT COUNT(*)::int AS count,COALESCE(SUM(total) FILTER (WHERE status <> 'Cancelled'),0)::numeric AS revenue FROM orders"),
     pool.query("SELECT COUNT(*)::int AS count FROM orders WHERE status='Pending'")
   ]);
-  const low=await pool.query("SELECT id,name,stock FROM products WHERE active=true AND stock<=5 ORDER BY stock ASC,name ASC LIMIT 12");
-  res.json({products:p.rows[0].count,orders:o.rows[0].count,revenue:Number(o.rows[0].revenue),pending:s.rows[0].count,lowStock:low.rows});
+  res.json({products:p.rows[0].count,orders:o.rows[0].count,revenue:Number(o.rows[0].revenue),pending:s.rows[0].count});
 }));
-app.get("/api/admin/orders.csv",adminOnly,asyncRoute(async(req,res)=>{
-  const {rows}=await pool.query("SELECT id,customer_name,phone,address,city,items,subtotal,delivery_charge,discount,total,payment_method,status,created_at FROM orders ORDER BY id DESC");
-  const csvCell=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
-  const data=[["Order ID","Customer","Phone","Address","City","Items","Subtotal","Delivery","Discount","Total","Payment","Status","Created At"],...rows.map(o=>[o.id,o.customer_name,o.phone,o.address,o.city,(o.items||[]).map(i=>`${i.name} x ${i.qty}`).join("; "),o.subtotal,o.delivery_charge,o.discount,o.total,o.payment_method,o.status,o.created_at])];
-  res.setHeader("Content-Type","text/csv; charset=utf-8");res.setHeader("Content-Disposition",'attachment; filename="smart-fashion-orders.csv"');res.send("\uFEFF"+data.map(row=>row.map(csvCell).join(",")).join("\r\n"));
-}));
-app.get("/api/admin/customers",adminOnly,asyncRoute(async(req,res)=>{
- const q=String(req.query.q||"").trim().slice(0,120),status=String(req.query.status||"all");
- const params=[];let where=[];
- if(q){params.push(`%${q}%`);where.push(`(c.full_name ILIKE $${params.length} OR c.email ILIKE $${params.length} OR c.phone ILIKE $${params.length} OR c.id::text ILIKE $${params.length})`);}
- if(status==="active"||status==="inactive"){params.push(status==="active");where.push(`c.active=$${params.length}`);}
- const sql=`SELECT c.id,c.full_name,c.email,c.phone,c.address,c.city,c.profile_image,c.active,c.created_at,COUNT(o.id)::int AS total_orders,COALESCE(SUM(o.total) FILTER(WHERE o.status<>'Cancelled'),0)::numeric AS total_spending FROM customers c LEFT JOIN orders o ON o.customer_id=c.id ${where.length?"WHERE "+where.join(" AND "):""} GROUP BY c.id ORDER BY c.id DESC LIMIT 500`;
- const {rows}=await pool.query(sql,params);res.json(rows);
-}));
-app.get("/api/admin/customers/:id",adminOnly,asyncRoute(async(req,res)=>{
- const c=await pool.query("SELECT id,full_name,email,phone,address,city,profile_image,active,created_at FROM customers WHERE id=$1",[req.params.id]);
- if(!c.rows[0])return res.status(404).json({error:"Customer not found"});
- const o=await pool.query("SELECT id,items,subtotal,delivery_charge,discount,total,payment_method,payment_status,status,created_at FROM orders WHERE customer_id=$1 ORDER BY id DESC",[req.params.id]);
- res.json({customer:c.rows[0],orders:o.rows});
-}));
-app.patch("/api/admin/customers/:id/status",adminOnly,asyncRoute(async(req,res)=>{
- if(typeof req.body.active!=="boolean")return res.status(400).json({error:"active must be true or false"});
- const {rows}=await pool.query("UPDATE customers SET active=$1 WHERE id=$2 RETURNING id,active",[req.body.active,req.params.id]);
- if(!rows[0])return res.status(404).json({error:"Customer not found"});res.json(rows[0]);
-}));
-app.post("/api/admin/customers/:id/anonymize",adminOnly,asyncRoute(async(req,res)=>{
- const {rows}=await pool.query("UPDATE customers SET full_name='Deleted customer',email=('deleted+'||id||'@anonymized.invalid'),phone='',address='',city='',profile_image='',password_hash=$1,active=false WHERE id=$2 RETURNING id,active",[await bcrypt.hash(require("crypto").randomBytes(32).toString("hex"),12),req.params.id]);
- if(!rows[0])return res.status(404).json({error:"Customer not found"});
- await pool.query("UPDATE orders SET customer_name='Deleted customer',phone='',address='',city='' WHERE customer_id=$1",[req.params.id]);res.json({success:true});
-}));
-app.get("/api/admin/analytics",adminOnly,asyncRoute(async(req,res)=>{
- const from=String(req.query.from||"").slice(0,10),to=String(req.query.to||"").slice(0,10);
- const validDate=x=>/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x));
- if((from&&!validDate(from))||(to&&!validDate(to)))return res.status(400).json({error:"Date range invalid"});
- const args=[];let cond="status <> 'Cancelled'";
- if(from){args.push(from);cond+=` AND created_at >= $${args.length}::date`;}
- if(to){args.push(to);cond+=` AND created_at < ($${args.length}::date + INTERVAL '1 day')`;}
- const [totals,days,best,customers]=await Promise.all([
-  pool.query(`SELECT COUNT(*)::int orders,COALESCE(SUM(total),0)::numeric revenue,COUNT(*) FILTER(WHERE status='Pending')::int pending,COUNT(*) FILTER(WHERE status='Delivered')::int completed FROM orders WHERE ${cond}`,args),
-  pool.query(`SELECT created_at::date day,COUNT(*)::int orders,COALESCE(SUM(total),0)::numeric revenue FROM orders WHERE ${cond} GROUP BY 1 ORDER BY 1 DESC LIMIT 30`,args),
-  pool.query(`SELECT item->>'name' name,SUM((item->>'qty')::int)::int quantity FROM orders o CROSS JOIN LATERAL jsonb_array_elements(o.items) item WHERE ${cond} GROUP BY 1 ORDER BY 2 DESC LIMIT 10`,args),
-  pool.query("SELECT COUNT(*)::int total,COUNT(*) FILTER(WHERE active)::int active FROM customers")
- ]);
- res.json({totals:totals.rows[0],days:days.rows.reverse(),bestSellers:best.rows,customers:customers.rows[0]});
-}));
-app.patch("/api/admin/orders/:id/payment",adminOnly,asyncRoute(async(req,res)=>{
- const allowed=["Pending","Paid","Failed","Refunded"];
- if(!allowed.includes(req.body.payment_status))return res.status(400).json({error:"Invalid payment status"});
- const {rows}=await pool.query("UPDATE orders SET payment_status=$1 WHERE id=$2 RETURNING id,payment_status",[req.body.payment_status,req.params.id]);
- if(!rows[0])return res.status(404).json({error:"Order not found"});res.json(rows[0]);
-}));
-app.post("/api/admin/inventory/adjust",adminOnly,asyncRoute(async(req,res)=>{
- const id=Number(req.body.product_id),delta=Number(req.body.change_qty),reason=String(req.body.reason||"manual adjustment").slice(0,120);
- if(!Number.isInteger(id)||id<1||!Number.isInteger(delta)||delta===0||Math.abs(delta)>100000)return res.status(400).json({error:"Invalid inventory adjustment"});
- const client=await pool.connect();try{await client.query("BEGIN");const p=await client.query("SELECT stock FROM products WHERE id=$1 FOR UPDATE",[id]);if(!p.rows[0])throw Object.assign(new Error("Product not found"),{status:404});if(Number(p.rows[0].stock)+delta<0)throw Object.assign(new Error("Stock cannot be negative"),{status:400});await client.query("UPDATE products SET stock=stock+$1 WHERE id=$2",[delta,id]);await client.query("INSERT INTO inventory_movements(product_id,change_qty,reason) VALUES($1,$2,$3)",[id,delta,reason]);await client.query("COMMIT");res.json({success:true,stock:Number(p.rows[0].stock)+delta});}catch(e){await client.query("ROLLBACK");if(e.status)return res.status(e.status).json({error:e.message});throw e;}finally{client.release();}
-}));
-app.get("/api/admin/inventory/:id/history",adminOnly,asyncRoute(async(req,res)=>{const {rows}=await pool.query("SELECT * FROM inventory_movements WHERE product_id=$1 ORDER BY id DESC LIMIT 100",[req.params.id]);res.json(rows)}));
 app.put("/api/admin/settings",adminOnly,asyncRoute(async(req,res)=>{
   const allowed=["store_name","delivery_charge","announcement","phone","address","hero_title","hero_subtitle","hero_image","promo_title","promo_text","whatsapp","facebook","instagram"];
   for(const k of allowed) if(req.body[k]!==undefined)
