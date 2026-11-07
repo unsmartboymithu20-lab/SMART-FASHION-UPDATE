@@ -124,3 +124,28 @@ td{color:#40394b}.table-action{border-radius:8px;color:#64459d;border-color:#e5d
  .footer-bottom{font-size:8px;flex-wrap:wrap;line-height:1.6}
 }
 @media(max-width:360px){.sidebar .side{padding:9px!important;font-size:9px}.view-store-link{font-size:9px!important;padding:8px}.stats b{font-size:19px!important}}
+
+/* SMART FASHION responsive footer + mobile layout patch */
+footer{gap:22px;align-items:flex-start;flex-wrap:wrap;line-height:1.7}
+footer>*{min-width:0}
+footer a{overflow-wrap:anywhere}
+@media(max-width:768px){
+ .header{height:auto;min-height:68px;padding:14px 5%;gap:14px;flex-wrap:wrap}
+ nav{gap:14px;flex-wrap:wrap;font-size:12px}
+ .hero{grid-template-columns:1fr;padding:35px 5%;min-height:0}
+ .hero-image{height:320px}
+ .section{padding:55px 5%}
+ .products{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+ .section h2,.about h2{font-size:30px}
+ .features{grid-template-columns:1fr;padding:38px 5%;gap:20px}
+ footer{display:grid;grid-template-columns:1fr;gap:14px;padding:25px 5%;text-align:left}
+ footer .social-links,footer .footer-links{display:flex;flex-wrap:wrap;gap:12px}
+ .admin-shell{grid-template-columns:1fr}
+ .sidebar{padding:18px;flex-direction:row;flex-wrap:wrap}
+}
+@media(max-width:380px){
+ .products{gap:10px}
+ .product-card h3{font-size:12px}
+ .product-bottom{gap:6px;flex-wrap:wrap}
+ .add-btn{padding:7px 9px}
+}
