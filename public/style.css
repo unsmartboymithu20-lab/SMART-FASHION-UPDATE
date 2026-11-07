@@ -36,5 +36,91 @@ body.store-app{background:#f6f5fa;color:#1c1a2a;padding-bottom:82px}
 @media(max-width:480px){.stats{gap:8px!important}.stats>div{padding:13px!important}.stats b{font-size:23px!important}.panel{padding:14px!important}.admin-top h1{font-size:25px}.coupon-admin-form{grid-template-columns:1fr}}
 /* Customer account and product gallery additions */
 .account-modal-card{max-width:460px}.account-tabs{display:flex;gap:8px;margin:14px 0}.account-tabs button{flex:1;border:1px solid #ded5f5;border-radius:12px;padding:11px;background:#f5f1ff;color:#493477;font-weight:700}.account-tabs button.active{background:#7655c5;color:white}.account-form{display:grid;gap:10px}.account-form input{width:100%;padding:13px;border:1px solid #ddd5ec;border-radius:12px;background:#fff}.account-note{font-size:13px;color:#756b83}.account-profile{padding:14px;border:1px solid #e8e0f3;border-radius:16px;background:#faf8ff}.account-profile p{margin:5px 0}.account-order{padding:12px 0;border-bottom:1px solid #eee}.admin-image-preview{object-fit:cover;margin:8px 0;border:1px solid #ddd}
-/* Product detail quick-view and responsive polish */
-.product-view{display:block;width:100%;padding:0;border:0;background:transparent;cursor:pointer;text-align:left}.product-title-link{cursor:pointer}.product-title-link:hover{color:#7655c5}.product-detail-modal{width:min(760px,100%);border-radius:22px}.product-detail-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:center}.product-detail-grid>img{width:100%;max-height:520px;object-fit:cover;border-radius:16px;background:#f4f0fa}.product-detail-grid h2{font-size:28px;margin:10px 0}.detail-price{display:block;font-size:24px;color:#7655c5;margin:12px 0}.detail-actions{display:flex;gap:9px;flex-wrap:wrap;margin:18px 0}.review-detail{border:0;background:transparent;color:#7655c5;padding:8px 0;cursor:pointer}.product-detail-grid p{line-height:1.6;color:#686477}.product-detail-grid small{color:#7655c5;letter-spacing:1px;text-transform:uppercase}@media(max-width:600px){.product-detail-modal{padding:18px}.product-detail-grid{grid-template-columns:1fr;gap:12px}.product-detail-grid>img{max-height:330px}.product-detail-grid h2{font-size:22px}}
+
+
+/* SMART FASHION premium admin + storefront polish */
+.admin-body{background:#f4f2f8;color:#211d2b}
+.login-wrap{position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(circle at 15% 18%,#e4d9ff 0,transparent 34%),radial-gradient(circle at 88% 82%,#f4d9e7 0,transparent 30%),linear-gradient(135deg,#f8f7fb,#eeebf5);padding:28px}
+.login-wrap:before,.login-wrap:after{content:"";position:absolute;z-index:-1;border:1px solid #7655c51c;border-radius:50%;width:440px;height:440px}
+.login-wrap:before{top:-240px;right:-120px}.login-wrap:after{bottom:-290px;left:-140px;width:540px;height:540px}
+.login-card{position:relative;width:min(440px,100%);padding:42px 40px 30px;border:1px solid #ffffffd9;border-radius:26px;background:#ffffffed;box-shadow:0 28px 90px #3020441c;backdrop-filter:blur(20px)}
+.login-brand-mark{width:48px;height:48px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,#8e6bd4,#573a9a);color:white;font:800 16px 'Playfair Display';letter-spacing:-1px;box-shadow:0 8px 20px #7655c54a;margin-bottom:18px}
+.login-card>.logo{display:inline-block;font-size:19px;letter-spacing:1.2px;font-weight:800;color:#211d2b;text-decoration:none}
+.login-card>.logo span,.footer-logo span{color:#8562c6}
+.login-card .eyebrow{margin:27px 0 7px;color:#8b6bc3}
+.login-card h1{font:700 clamp(31px,6vw,39px)/1.1 'Playfair Display',serif;margin:0;color:#211d2b}
+.login-card h1 span{color:#8562c6}
+.login-subtitle{font-size:13px;color:#898294;line-height:1.6;margin:10px 0 24px}
+.login-label{display:block;font-size:10px!important;font-weight:800;letter-spacing:1.2px;color:#61576f!important;margin:13px 0 2px}
+.login-card input{width:100%;height:49px;padding:0 15px;border:1px solid #e7e1ef;border-radius:12px;background:#fbfaff;margin:6px 0 8px;outline:none;transition:.2s}
+.login-card input:focus{border-color:#9272ce;box-shadow:0 0 0 4px #9272ce1b;background:#fff}
+.login-card .primary-btn{width:100%;min-height:50px;margin-top:15px;border-radius:12px;background:linear-gradient(110deg,#7655c5,#52378f);font-weight:800;letter-spacing:1px;box-shadow:0 10px 22px #7655c532}
+.login-card .primary-btn:hover{background:linear-gradient(110deg,#6242ae,#40276f);transform:translateY(-1px)}
+.login-card .primary-btn:disabled{opacity:.65;cursor:wait;transform:none}
+.login-card .error{font-size:12px;line-height:1.55;margin:12px 0 0;overflow-wrap:anywhere}
+.login-card .setup-error{padding:11px 12px;border:1px solid #f0d4a6;border-radius:10px;background:#fff8e9;color:#80551a}
+.back-store-link{display:inline-block;margin-top:18px;color:#76658e;font-size:12px;text-decoration:none}
+.back-store-link:hover{color:#6945b0}
+.login-secure-note{border-top:1px solid #eee9f4;margin-top:25px;padding-top:16px;text-align:center;color:#9b93a7;font-size:9px;letter-spacing:1.5px;font-weight:800}
+.login-secure-note span{color:#37a879;margin-right:6px}
+.admin-shell{grid-template-columns:260px minmax(0,1fr);background:#f4f2f8}
+.sidebar{position:sticky;top:0;height:100vh;min-height:100vh;padding:30px 18px;background:linear-gradient(180deg,#211a31,#171421);box-shadow:8px 0 30px #211a310b;gap:7px}
+.sidebar .logo{font-size:19px;letter-spacing:1px;font-weight:800;text-decoration:none}
+.sidebar .logo span{color:#b99ae9}
+.sidebar>p{margin:5px 12px 12px;font-size:9px;letter-spacing:2px;color:#9d91b3}
+.side{border-radius:11px;padding:12px 14px;font-size:12px;font-weight:650;transition:background .2s,color .2s,transform .2s}
+.side:hover{background:#ffffff12;color:#fff;transform:translateX(2px)}
+.side.active,.side.active:hover{background:linear-gradient(100deg,#8662cc,#6746a9)!important;box-shadow:0 8px 18px #7655c538}
+.side.logout{margin-top:auto;color:#e7b7b7}
+.admin-main{padding:34px clamp(18px,3vw,42px);min-width:0}
+.admin-top{top:0;margin:-10px 0 28px;padding:16px 0;background:#f4f2f8eF;border-bottom:1px solid #e9e4f0}
+.admin-top .eyebrow{font-size:9px;letter-spacing:1.7px;margin:0 0 5px}
+.admin-top h1{font:700 clamp(27px,3vw,36px)/1.15 'Playfair Display',serif;color:#241d31}
+.view-store-link{display:inline-flex;align-items:center;gap:8px;padding:11px 15px;border:1px solid #e5dcef;border-radius:11px;background:#fff;color:#65469e!important;font-size:11px!important;font-weight:800;text-decoration:none;white-space:nowrap}
+.view-store-link:hover{background:#f4effc}
+.stats>div,.panel{border:1px solid #ece7f2;border-radius:16px;box-shadow:0 8px 25px #30204408}
+.stats>div{transition:transform .2s,box-shadow .2s}.stats>div:hover{transform:translateY(-3px);box-shadow:0 13px 28px #30204412}
+.stats span{font-size:11px;color:#82788f}.stats b{color:#2b223a;font-variant-numeric:tabular-nums}
+.panel h2{color:#2b223a}.panel-head{gap:12px;flex-wrap:wrap}
+.table-wrap{border:1px solid #eee9f3;border-radius:12px}
+table{font-size:12px}th{background:#faf8fc;color:#766b86;font-size:10px;letter-spacing:.4px;text-transform:uppercase}
+td{color:#40394b}.table-action{border-radius:8px;color:#64459d;border-color:#e5dcef}
+.table-action:hover{background:#f4effc}
+.status-select{border-radius:8px}
+.admin-load-error{padding:12px;border-radius:10px;background:#fff2f0;color:#a52c24;font-size:12px}
+.modal-card{border:1px solid #eee8f4;border-radius:18px;box-shadow:0 24px 80px #1d142b30}
+.app-footer{width:100%;margin:48px 0 0;padding:38px max(5%,calc((100% - 1200px)/2)) 22px;background:#211a30;color:#fff;display:grid;grid-template-columns:1fr auto;gap:22px 35px;align-items:center}
+.footer-logo{display:inline-block;color:#fff;text-decoration:none;font-size:19px;font-weight:850;letter-spacing:1px}
+.footer-brand p{font-size:11px;color:#b7adc7;margin:8px 0 0}
+.footer-links{display:flex;gap:clamp(14px,3vw,30px);align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.footer-links a{color:#e0d8ed;text-decoration:none;font-size:11px;transition:color .2s}
+.footer-links a:hover{color:#c5a5ff}
+.footer-bottom{grid-column:1/-1;border-top:1px solid #ffffff1c;padding-top:17px;display:flex;justify-content:space-between;gap:12px;color:#a99eb9;font-size:9px;letter-spacing:.3px}
+@media(max-width:850px){
+ .admin-shell{display:block!important}
+ .sidebar{position:sticky!important;top:0;z-index:20;width:100%!important;height:auto!important;min-height:0!important;padding:9px 10px!important;display:flex;flex-direction:row;gap:6px;overflow-x:auto;overflow-y:hidden;align-items:center;scrollbar-width:thin}
+ .sidebar .logo,.sidebar>p{display:none}
+ .sidebar .side{flex:0 0 auto;white-space:nowrap;padding:10px 12px!important;font-size:10px}
+ .side.logout{margin:0 0 0 auto}
+ .admin-main{padding:13px 12px 25px!important}
+ .admin-top{position:relative;top:auto;margin:0 0 17px;padding:12px 2px}
+ .admin-top h1{font-size:27px}
+ .view-store-link{padding:9px 11px;font-size:10px!important}
+}
+@media(max-width:600px){
+ .login-wrap{padding:16px}
+ .login-card{padding:30px 23px 24px;border-radius:21px}
+ .login-card h1{font-size:32px}
+ .admin-top .eyebrow{font-size:8px}
+ .admin-top h1{font-size:23px}
+ .stats{gap:8px!important}
+ .stats>div{min-width:0;padding:13px!important;border-radius:13px}
+ .stats span{font-size:10px}.stats b{font-size:21px!important}
+ .panel{padding:14px!important;border-radius:13px}
+ .panel h2{font-size:19px}
+ .coupon-admin-form{grid-template-columns:1fr!important}
+ .app-footer{margin-top:30px;padding:28px 5% 105px;grid-template-columns:1fr;gap:17px}
+ .footer-links{justify-content:flex-start;gap:18px}
+ .footer-bottom{font-size:8px;flex-wrap:wrap;line-height:1.6}
+}
+@media(max-width:360px){.sidebar .side{padding:9px!important;font-size:9px}.view-store-link{font-size:9px!important;padding:8px}.stats b{font-size:19px!important}}
