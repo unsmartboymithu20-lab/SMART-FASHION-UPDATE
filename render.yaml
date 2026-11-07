@@ -9,11 +9,15 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: MONGODB_URI
-        sync: false
       - key: SESSION_SECRET
         generateValue: true
+      - key: DB_SSL
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
+      - key: STORE_NAME
+        value: SMART FASHION
